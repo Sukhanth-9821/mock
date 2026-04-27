@@ -30,7 +30,7 @@ pipeline{
             steps{
                 withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
                     sh '''
-                    pysonar \
+                    venv/bin/pysonar \
                     --sonar-host-url=http://localhost:9000 \
                     --sonar-token=sqp_db09236467dbaee9411d0e8c5379b698fd8d6c54 \
                     --sonar-project-key=demo2
