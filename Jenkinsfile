@@ -45,10 +45,11 @@ pipeline{
         stage ("Docker Build"){
             steps{
                 def dockerHome= tool 'dockertool', type: 'dockertool'
-                env.PATH = ${dockerHome}/bin:${env.PATH}
+                env.PATH = "${dockerHome}/bin:${env.PATH}"
                 
                 sh '''
                 docker build -t "localhost:8085/${Image_name}:${env.BUILD_NUMBER} ."
+                docker images
                 '''
             }
         }
