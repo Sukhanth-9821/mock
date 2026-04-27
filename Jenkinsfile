@@ -55,6 +55,16 @@ pipeline{
             }
             }
         }
+        stage ("Trivy Scan"){
+            steps {
+                sh """
+                    trivy localhost:8085/${params.Image_name}:${env.BUILD_NUMBER}"
+                """
+                
+
+            }
+        }
+        
         
     }
 }
