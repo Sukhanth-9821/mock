@@ -45,7 +45,7 @@ pipeline{
         stage ("Docker Build"){
             steps{
                 script{
-                def dockerHome = tool name: 'dockertool', type: 'dockertool'
+                def dockerHome = tool name: 'dockertool', type: 'dockerTool'
                 env.PATH = "${dockerHome}/bin:${env.PATH}"
                 
                 sh """
