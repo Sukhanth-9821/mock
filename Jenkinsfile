@@ -1,70 +1,93 @@
 pipeline{
     agent any
-    parameters{
-        string(name:"Image_name", defaultValue:"codeexperts")
-    }
 
     stages{
-        stage ("git Checkout"){
-            steps{
-                git branch: 'Rel-001', url: 'https://github.com/Sukhanth-9821/mock.git'
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
             }
-
         }
-        stage ("Install and Build"){
+        stage ("git checkout"){
+            steps{
+                git branch: 'newbranch', url: 'https://github.com/Sukhanth-9821/newrepo_1.git'
+            }
+        }
+        stage("Build"){
             steps{
                 sh '''
-                   python3 -m venv venv
-                   . venv/bin/activate
-                   pip install --upgrade pip
-                   pip install -r requirements.txt
+                python3 -m venv venv
+                . venv/bin/activate
+                pip install --upgrade pip
+                pip install -r requirements.txt
                 '''
             }
         }
-        stage ("Test"){
+        stage("test"){
             steps{
                 sh '''
-                    venv/bin/python -m pytest
+                venv/bin/python -m pytest
                 '''
             }
         }
-
-        stage ("Sonar"){
+        stage("sonarqube Analysis"){
             steps{
+                script{
+                def scannerHome = tool 'SonarScanner'
                 withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
-                    sh '''
-                    venv/bin/pysonar \
-                    --sonar-host-url=http://sonarqube:9000 \
-                    --sonar-token=sqp_db09236467dbaee9411d0e8c5379b698fd8d6c54 \
-                    --sonar-project-key=demo2
-                    '''
+                    sh """
+                    echo "SONAR SCANNERRR: ${scannerHome}"
+                    ${scannerHome}/bin/sonar-scanner \
+                    -Dsonar.projectKey=demo \
+                    -Dsonar.sources=. \
+                    -Dsonar.host.url=http://sonarqube:9000 \
+                    -Dsonar.login=$SONAR_TOKEN
+                    """
+                }
                 }
             }
         }
 
-        stage ("Docker Build"){
+        stage("Build Docker Image"){
             steps{
                 script{
-                def dockerHome = tool name: 'dockertool', type: 'dockerTool'
-                env.PATH = "${dockerHome}/bin:${env.PATH}"
-                
-                sh """
-                docker build -t "localhost:8085/${params.Image_name}:${env.BUILD_NUMBER}" .
-                docker images
-                """
-            }
+                    def dockerHome = tool name: 'dockertool', type: 'dockerTool'
+                    
+                    // Add Docker to PATH
+                    env.PATH = "${dockerHome}/bin:${env.PATH}"
+
+                    env.IMAGENAME = "localhost:8085/codeexperts:${env.BUILD_NUMBER}"
+                    echo "Building Docker File with tag ${env.IMAGENAME}"
+                    sh """
+                    docker build -t ${env.IMAGENAME} .
+                    docker images
+                    """
+
+                }
             }
         }
         stage ("Trivy Scan"){
-            steps {
-                sh """
-                    trivy localhost:8085/${params.Image_name}:${env.BUILD_NUMBER}
-                """
-                
-
+	    steps {
+		sh """
+		    trivy image ${env.IMAGENAME}
+		"""
+	    }
+	}
+        
+        
+        stage("Nexus Login and Push"){
+            steps{
+                script{
+                    withCredentials([usernamePassword(credentialsId: 'nexus-cred', passwordVariable: 'nexus_paswd', usernameVariable: 'nexus_user')]) {
+                        
+                        sh """
+                        docker login localhost:8085 -u $nexus_user -p $nexus_paswd
+                        docker push ${env.IMAGENAME}
+                        
+                        """
+                    }
+                 }
             }
         }
-
-        
     }
+
 }
